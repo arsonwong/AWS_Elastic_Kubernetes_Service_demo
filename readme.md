@@ -26,6 +26,11 @@ Ensure these are installed and correctly referenced in `config.toml`:
 - [kubectl](https://kubernetes.io/docs/tasks/tools/)
 - Python ≥ 3.11
 
+### Python Dependencies
+```bash
+pip install -r requirements.txt
+```
+
 ### 🔑 AWS Setup
 You must have:
 - AWS account with admin or sufficient IAM permissions.
