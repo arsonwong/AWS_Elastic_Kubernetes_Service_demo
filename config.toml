@@ -1,0 +1,39 @@
+[paths]
+
+# AWS Command Line Interface (CLI)
+# To install it, follow the instructions here: https://aws.amazon.com/cli/
+
+AWS = '''C:\Program Files\Amazon\AWSCLIV2\aws.exe'''
+
+# kubectl command-line tool for interacting with Kubernetes clusters (Works inside the cluster (Pods, Jobs, Deployments, Services, etc.))
+# To install it, follow the instructions here: https://kubernetes.io/docs/tasks/tools/
+
+KUBECTL = '''C:\Program Files (x86)\Google\Cloud SDK\google-cloud-sdk\bin\kubectl.exe'''
+
+# eskctl command-line utility for creating and managing EKS clusters (infrastructure and cluster setup)
+# To install it, follow the instructions here: https://github.com/eksctl-io/eksctl#installation
+
+EKSCTL = '''C:\ProgramData\chocolatey\bin\eksctl.exe'''
+
+# Docker Desktop for building and pushing containerized applications up to the cloud
+# To install it, follow the instructions here: https://docs.docker.com/desktop/setup/install/windows-install/
+
+DOCKER  = '''C:\Program Files\Docker\Docker\resources\bin\docker.exe'''
+
+# Path to Docker Context, change as needed
+context_path = "dummy docker context"
+data_path = "dummy files"
+
+[AWS_profile]
+
+# you can use AWS CLI to view profiles with aws configure list-profiles
+aws_profile = "Workspaces_Administrator-734315127866"
+
+ECR_REPO   = "dummy-images"
+CLUSTER    = "autopilot-like"        # EKS cluster name
+FARGATE_NS = "batch"                  # namespace to run on Fargate
+GSA_ROLE   = "batch-workload-role"    # IAM role name for IRSA
+KSA        = "batch-executor"         # Kubernetes SA
+BUCKET_PREFIX     = "qelabs-batch-"
+IMAGE_TAG  = "latest"
+shards = 10
