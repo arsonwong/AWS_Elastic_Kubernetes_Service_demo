@@ -5,6 +5,7 @@ from pathlib import Path
 import tomllib
 from utilities import *
 import boto3
+import os
 
 config_path = Path("config.toml")
 
@@ -16,6 +17,9 @@ CLUSTER = config["AWS_profile"]["CLUSTER"]
 
 # AWS Command Line Interface (CLI)
 AWS = config["paths"]["AWS"]
+
+os.environ["AWS_PROFILE"] = PROFILE
+os.environ["AWS_PAGER"] = ""  # disable the built-in pager
 
 # SSO login
 ensure_sso_logged_in(AWS, PROFILE)
@@ -71,26 +75,53 @@ def find_endpoint(service_name: str, vpc_id: str):
 
 def ensure_interface_endpoint(service_suffix: str, vpc_id: str, subnet_ids: list[str], sg_ids: list[str], private_dns=True):
     """
-    Ensure an Interface VPC endpoint exists for e.g. 'sts' → com.amazonaws.<region>.sts.
-    Returns the endpoint ID.
+    Ensure an Interface VPC endpoint exists for e.g. 'sts' → com.amazonaws.<region>.<service_suffix>.
+    Picks at most one subnet per AZ (prefer private/internal-elb), to avoid DuplicateSubnetsInSameZone.
     """
     service_name = f"com.amazonaws.{REGION}.{service_suffix}"
+
+    # If it already exists, we're done.
     existing = find_endpoint(service_name, vpc_id)
     if existing:
         print(f"✔ Interface endpoint exists: {existing['VpcEndpointId']} ({service_name})")
         return existing["VpcEndpointId"]
 
+    # Describe subnets so we can pick one per AZ (prefer private/internal-elb)
+    sub_desc = ec2.describe_subnets(SubnetIds=subnet_ids)["Subnets"]
+
+    def is_private(sn):
+        # eksctl/EKS convention: private subnets tagged internal-elb
+        tags = {t["Key"]: t["Value"] for t in sn.get("Tags", [])}
+        return tags.get("kubernetes.io/role/internal-elb") == "1" or tags.get("kubernetes.io/role/internal-elb") == "true"
+
+    # Group by AZ, pick one (prefer private). If both same "privacy", pick the one with most available IPs.
+    by_az = {}
+    for sn in sub_desc:
+        az = sn["AvailabilityZone"]
+        candidate = by_az.get(az)
+        if candidate is None:
+            by_az[az] = sn
+            continue
+        def score(s):  # higher is better
+            return (1 if is_private(s) else 0, s.get("AvailableIpAddressCount", 0))
+        if score(sn) > score(candidate):
+            by_az[az] = sn
+
+    unique_subnets = [sn["SubnetId"] for sn in by_az.values()]
+    print("Interface endpoint subnets (one per AZ):", ", ".join(unique_subnets))
+
     resp = ec2.create_vpc_endpoint(
         VpcId=vpc_id,
         ServiceName=service_name,
         VpcEndpointType="Interface",
-        SubnetIds=subnet_ids,
+        SubnetIds=unique_subnets,          # ← key change
         SecurityGroupIds=sg_ids,
         PrivateDnsEnabled=private_dns,
     )
     eid = resp["VpcEndpoint"]["VpcEndpointId"]
     print(f"✔ Created interface endpoint: {eid} ({service_name})")
     return eid
+
 
 def ensure_gateway_endpoint_for_s3(vpc_id: str, route_table_ids: list[str]):
     """
@@ -192,3 +223,37 @@ if not route_table_ids:
 s3_endpoint_id = ensure_gateway_endpoint_for_s3(vpc_id, route_table_ids)
 
 print(f"Done. STS endpoint: {sts_endpoint_id}, S3 endpoint: {s3_endpoint_id}")
+
+print("Looking up default security group for the VPC...")
+resp = ec2.describe_security_groups(Filters=[{"Name": "vpc-id", "Values": [vpc_id]}])
+# pick one named 'default' as a fallback
+default_sg = next((sg for sg in resp["SecurityGroups"] if sg["GroupName"] == "default"), None)
+if default_sg:
+    security_group_id = default_sg["GroupId"]
+    print(f"Using default security group: {security_group_id}")
+else:
+    raise RuntimeError("No security group found for the VPC")
+
+# ---------- Add ECR interface endpoints ----------
+print("\n=== Creating ECR interface endpoints (api + dkr) ===")
+
+# These allow Fargate pods in private subnets to pull images from ECR without NAT
+try:
+    ecr_api_endpoint_id = ensure_interface_endpoint(
+        "ecr.api",
+        vpc_id=vpc_id,
+        subnet_ids=subnet_ids,
+        sg_ids=[security_group_id],
+        private_dns=True,
+    )
+    ecr_dkr_endpoint_id = ensure_interface_endpoint(
+        "ecr.dkr",
+        vpc_id=vpc_id,
+        subnet_ids=subnet_ids,
+        sg_ids=[security_group_id],
+        private_dns=True,
+    )
+    print(f"✔ ECR API endpoint: {ecr_api_endpoint_id}")
+    print(f"✔ ECR DKR endpoint: {ecr_dkr_endpoint_id}")
+except Exception as e:
+    print(f"⚠️ Failed to create ECR endpoints: {e}")
