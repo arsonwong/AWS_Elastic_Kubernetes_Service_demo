@@ -1,0 +1,32 @@
+[paths]
+
+# AWS CLI (adjust path if different on your system)
+AWS = '''C:\Program Files\Amazon\AWSCLIV2\aws.exe'''
+
+# Docker CLI for building & pushing images
+DOCKER = '''C:\Program Files\Docker\Docker\resources\bin\docker.exe'''
+
+# Local paths
+context_path = "dummy docker context"
+data_path    = "dummy files"
+
+
+[AWS_profile]
+
+# Use `aws configure list-profiles` to confirm your profile name
+aws_profile = "Workspaces_Administrator-734315127866"
+
+# Core resources for AWS Batch
+ECR_REPO      = "dummy-images"
+BUCKET_PREFIX = "qelabs-batch-"
+IMAGE_TAG     = "latest"
+
+# AWS Batch logical names (auto-created by step02 script)
+BATCH_ENV     = "qelabs-batch-env2"
+BATCH_QUEUE   = "qelabs-batch-queue2"
+BATCH_JOB_DEF = "qelabs-batch-jobdef2"
+LOG_GROUP = "/aws/batch/qelabs"
+JOB_NAME = "qelabs-sim"
+
+# Job parameters
+shards = 3

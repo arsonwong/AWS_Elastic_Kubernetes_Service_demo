@@ -3,12 +3,15 @@
 import subprocess
 from pathlib import Path
 import tomllib
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utilities import *
 from tqdm import tqdm
-import os
 
-config_path = Path("config.toml")
 
+directory = os.path.dirname(os.path.abspath(__file__))
+config_path = Path(os.path.join(directory,"config.toml"))
 with open(config_path, "rb") as f:
     config = tomllib.load(f)
 
@@ -35,7 +38,7 @@ ACCOUNT_ID = subprocess.check_output([AWS,"sts","get-caller-identity","--query",
 bucket_name = f"{BUCKET_PREFIX}{REGION}-{ACCOUNT_ID}"
 
 # uncomment to delete content of bucket first (warning - you might inadvertently delete stuff you need)
-# sh([AWS, "s3", "rm", f"s3://{bucket_name}/", "--recursive"])
+sh([AWS, "s3", "rm", f"s3://{bucket_name}/", "--recursive"])
 # Upload files
 for i in tqdm(range(1, shards+1)):
     src = fr"{data_path}\{i}"

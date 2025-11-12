@@ -3,10 +3,12 @@
 import os, subprocess
 from pathlib import Path
 import tomllib
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utilities import *
 
-config_path = Path("config.toml")
-
+directory = os.path.dirname(os.path.abspath(__file__))
+config_path = Path(os.path.join(directory,"config.toml"))
 with open(config_path, "rb") as f:
     config = tomllib.load(f)
 

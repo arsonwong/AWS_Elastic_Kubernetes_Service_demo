@@ -36,4 +36,4 @@ GSA_ROLE   = "batch-workload-role"    # IAM role name for IRSA
 KSA        = "batch-executor"         # Kubernetes SA
 BUCKET_PREFIX     = "qelabs-batch-"
 IMAGE_TAG  = "latest"
-shards = 10
+shards = 3
